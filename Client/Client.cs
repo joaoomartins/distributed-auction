@@ -1,5 +1,6 @@
 ﻿using Shared;
 using System.Net.Sockets;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace LeilaoDistribuido.Client
 {
@@ -19,23 +20,51 @@ namespace LeilaoDistribuido.Client
                 StreamWriter outWriter = new StreamWriter(stream) { AutoFlush = true };
                 StreamReader inReader = new StreamReader(stream);
 
-                Console.WriteLine("Connected to server! Type 'Exit' to quit.");
+                Console.WriteLine("[Client] Connected to server!");
+
+                //validate name
+
+                string username;
 
                 while (true)
                 {
-                    Console.WriteLine("Enter a message to send to the server: ");
-                    string text = Console.ReadLine();
+                    Console.WriteLine("Enter your username: ");
+                    username = Console.ReadLine();
+
+                    outWriter.WriteLine(username);
+                    string? response = inReader.ReadLine();
+
+                    if (response == "OK")
+                    {
+                        Console.WriteLine($"[Client] Welcome, {username}! Successfully registered.");
+                        break;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[Client] The username {username} already exists. Try other username.");
+                    } 
+                }
+
+                Console.WriteLine("You can send test messages.Type “Exit” to leave");
+
+                //conversation
+                while (true) 
+                {
+                    Console.WriteLine("Message: ");
+                    string? text = Console.ReadLine();
+
+                    if (string.IsNullOrWhiteSpace(text)) continue;
 
                     outWriter.WriteLine(text);
 
                     if (text.Equals("Exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine("Exiting client application...");
+                        Console.WriteLine("Turnning off...");
                         break;
                     }
 
                     string? response = inReader.ReadLine();
-                    Console.WriteLine("Server response: " + response);
+                    Console.WriteLine("Response: " + response);
                 }
             }
             catch (SocketException)
