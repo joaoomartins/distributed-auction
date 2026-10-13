@@ -11,6 +11,10 @@ namespace LeilaoDistribuido.Server
         public static string ITEM_NAME = "";
         public static double ITEM_BASE_PRICE;
         public static int MAX_TIME;
+        public static int ADMISSION_TIME;
+
+        public static volatile bool ADMISSION_OPEN = true;
+        public static volatile bool AUCTION_ENDED = false;
 
         //users and offers
         public static double HIGHEST_OFFER = 0;
@@ -23,6 +27,7 @@ namespace LeilaoDistribuido.Server
 
         public static void Main()
         {
+            int nUsers = 0;
 
             Console.WriteLine("--- CONFIGURATION ---");
             Console.WriteLine("Enter the product name: ");
@@ -35,12 +40,14 @@ namespace LeilaoDistribuido.Server
 
             ITEM_BASE_PRICE = InputValidation.ValidateDoubleGT0("Enter the product base price (EUR): ");
             MAX_TIME = InputValidation.ValidateIntGT0("Enter the max duration (sec): ");
+            ADMISSION_TIME = InputValidation.ValidateIntGT0("Enter the admission time window (sec): ");
             int portNumber = InputValidation.ValidateIntBetween("Enter the port number: ", 1024, 65535);
 
             //get hostname
             string hostname = Dns.GetHostName();
             TcpListener? serverSocket = null;
-            int clientCount = 0;
+            List<Thread> threads = new List<Thread>();
+            int offerersCount = 0;
 
             try
             {
@@ -49,25 +56,79 @@ namespace LeilaoDistribuido.Server
 
                 Console.WriteLine($"[Server] Auction of '{ITEM_NAME}' | Base price: {ITEM_BASE_PRICE} EUR | Duration: {MAX_TIME}s.");
                 Console.WriteLine($"[Server] Listening on {hostname}:{portNumber}");
-                Console.WriteLine("[Server]: waiting offerers...");
+                Console.WriteLine($"[Server] Admission window OPEN for {ADMISSION_TIME} seconds. Waiting offerers...\n");
 
                 while (true)
                 {
-                    //accept tcp
-                    TcpClient clientSocket = serverSocket.AcceptTcpClient();
-                    clientCount++;
-
                     Console.WriteLine("Main: new offerer connected...");
-
-                    //create and start a unique client thread
-                    ServerThread serverThread = new ServerThread(clientSocket);
                     
-                    Thread thread = new Thread(serverThread.Run);
-                    thread.Name = "Server thread-" + clientCount;
+                    try
+                    {
+                        CancellationTokenSource cts = new CancellationTokenSource(ADMISSION_TIME * 1000);
+                        TcpClient clientSocket = serverSocket.AcceptTcpClientAsync(cts.Token).GetAwaiter().GetResult();
 
-                    //thrads.Add
-                    thread.Start();
+                        Console.WriteLine("Main: new connection...");
+
+                        offerersCount++;
+
+                        //create and start a unique client thread
+                        ServerThread serverThread = new ServerThread(clientSocket);
+                        Thread thread = new Thread(serverThread.Run)
+                        {
+                            Name = "Server thread-" + offerersCount
+                        };
+
+                        threads.Add(thread);
+                        thread.Start();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Console.WriteLine("[MAIN] Time to accept new players has ended!");
+                    
+                        if (offerersCount == 0)
+                        {
+                            Console.WriteLine("[MAIN] No offerers joined. Auction cancelled.");
+                            return;
+                        }
+
+                        semaphore.Release(offerersCount);
+                        break;
+                    }
                 }
+
+                //auction timer
+                DateTime startAuction = DateTime.Now;
+                foreach (Thread thread in threads)
+                {
+                    TimeSpan remaining = TimeSpan.FromSeconds(MAX_TIME) - (DateTime.Now - startAuction);
+                    if (remaining.TotalMilliseconds > 0)
+                    {
+                        thread.Join(remaining);
+                    }
+                }
+
+                //close auction if time expired
+                foreach (Thread thread in threads)
+                {
+                    if (thread.IsAlive)
+                    {
+                        AUCTION_ENDED = true;
+                        Console.WriteLine("[MAIN] Auction timas has ended!");
+                    }
+
+                }
+
+                //RESULTS
+                Console.WriteLine("\n=== AUCTION RESULTS ===");
+                if (HIGHEST_OFFER >= ITEM_BASE_PRICE && !string.IsNullOrEmpty(HIGHEST_OFFERER))
+                {
+                    Console.WriteLine($"Winner: {HIGHEST_OFFERER} with bid of {HIGHEST_OFFER} EUR!");
+                }
+                else
+                {
+                    Console.WriteLine("Item was not sold (no valid bids above base price).");
+                }
+
             }
             catch (SocketException)
             {

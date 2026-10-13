@@ -23,7 +23,6 @@ namespace LeilaoDistribuido.Client
                 Console.WriteLine("[Client] Connected to server!");
 
                 //validate name
-
                 string username;
 
                 while (true)
@@ -34,7 +33,7 @@ namespace LeilaoDistribuido.Client
                     outWriter.WriteLine(username);
                     string? response = inReader.ReadLine();
 
-                    if (response == "OK")
+                    if (response == "NAME_OK")
                     {
                         Console.WriteLine($"[Client] Welcome, {username}! Successfully registered.");
                         break;
@@ -45,9 +44,27 @@ namespace LeilaoDistribuido.Client
                     } 
                 }
 
-                Console.WriteLine("You can send test messages.Type “Exit” to leave");
+                //waiting for the auction to begin
+                Console.WriteLine("\n[Client] Waiting for the admission window to close and auction to start...");
 
-                //conversation
+                string? infoMessage = inReader.ReadLine();
+                //MESSAGE RECEIVED: AUCTION_START: ITEM_NAME;ITEM_BASE_PRICE index 0 1 2
+
+                if (infoMessage != null && infoMessage.StartsWith("AUCTION_START"))
+                {
+                    string[] information = infoMessage.Split(';');
+                    string item = information.Length > 1 ? information[1] : "Default Item"; //condition ? true : false
+                    string price = information.Length > 2 ? information[2] : "0 - Default price";
+
+                    Console.WriteLine("\n==============================================");
+                    Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
+                    Console.WriteLine($"Item: {item} | Starting base price: {price} EUR");
+                    Console.WriteLine("You can send messages/bids. Type 'Exit' to leave.");
+                    Console.WriteLine("==============================================\n");
+                }
+
+
+                //communication
                 while (true) 
                 {
                     Console.WriteLine("Message: ");
@@ -59,11 +76,17 @@ namespace LeilaoDistribuido.Client
 
                     if (text.Equals("Exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine("Turnning off...");
+                        Console.WriteLine("Leaving the auction...");
                         break;
                     }
 
                     string? response = inReader.ReadLine();
+                    if (response == null)
+                    {
+                        Console.WriteLine("[Client] Server closed the connection.");
+                        break;
+                    }
+
                     Console.WriteLine("Response: " + response);
                 }
             }

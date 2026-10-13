@@ -49,7 +49,7 @@ namespace LeilaoDistribuido.Server
 
                     if (acepted)
                     {
-                        outWriter.WriteLine("OK");
+                        outWriter.WriteLine("NAME_OK");
                         Console.WriteLine("Thread " + Thread.CurrentThread.Name + ": User registed -> " + username);
                         break;
                     }
@@ -60,19 +60,28 @@ namespace LeilaoDistribuido.Server
                     }
                 }
 
-                //mensages
-                while (true)
+                //wait for admission time
+                Console.WriteLine("Thread " + Thread.CurrentThread.Name + " (" + username + "): Waiting for admission window to close...");
+
+                Server.semaphore.Wait();
+
+                //send info to offerer
+                outWriter.WriteLine($"AUCTION_START;{Server.ITEM_NAME};{Server.ITEM_BASE_PRICE}");
+                Console.WriteLine("Thread " + Thread.CurrentThread.Name + " (" + username + "): Auction started for this user.");
+
+                //notify the offerer that the auction has begun
+                while (!Server.AUCTION_ENDED)
                 {
                     string? message = inReader.ReadLine();
 
                     if (message == null || message.Equals("Exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine("Thread " + Thread.CurrentThread.Name + ": User " + username + " left.");
+                        Console.WriteLine("Thread " + Thread.CurrentThread.Name + ": User " + username + " left!");
                         break;
                     }
 
                     Console.WriteLine("Thread " + Thread.CurrentThread.Name + " (" + username + "): " + message);
-                    outWriter.WriteLine("Server received " + message + " from " + username);
+                    outWriter.WriteLine("Server received: " + message);
                 }
             }
             catch (IOException)
