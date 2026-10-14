@@ -83,6 +83,7 @@ namespace LeilaoDistribuido.Server
                     }
                     catch (OperationCanceledException)
                     {
+                        ADMISSION_OPEN = false;
                         Console.WriteLine("[MAIN] Time to accept new players has ended!");
                     
                         if (offerersCount == 0)
@@ -107,27 +108,28 @@ namespace LeilaoDistribuido.Server
                     }
                 }
 
-                //close auction if time expired
-                foreach (Thread thread in threads)
-                {
-                    if (thread.IsAlive)
-                    {
-                        AUCTION_ENDED = true;
-                        Console.WriteLine("[MAIN] Auction timas has ended!");
-                    }
-
-                }
+                AUCTION_ENDED = true;
+                Console.WriteLine("[MAIN] Auction time has ended!");
 
                 //RESULTS
                 Console.WriteLine("\n=== AUCTION RESULTS ===");
                 if (HIGHEST_OFFER >= ITEM_BASE_PRICE && !string.IsNullOrEmpty(HIGHEST_OFFERER))
                 {
-                    Console.WriteLine($"Winner: {HIGHEST_OFFERER} with bid of {HIGHEST_OFFER} EUR!");
+                    Console.WriteLine($"Winner: {HIGHEST_OFFERER} with offer of {HIGHEST_OFFER} EUR!");
                 }
                 else
                 {
-                    Console.WriteLine("Item was not sold (no valid bids above base price).");
+                    Console.WriteLine("Item was not sold (no valid offers above base price).");
                 }
+
+                //wait offerers to end program
+                Console.WriteLine("[MAIN] Waiting for clients to exit (they must type 'Exit')...");
+                foreach (Thread thread in threads)
+                {
+                    thread.Join();
+                }
+
+                Console.WriteLine("[MAIN] All client threads finished. Server shutting down.");
 
             }
             catch (SocketException)
