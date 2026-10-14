@@ -38,10 +38,24 @@ namespace LeilaoDistribuido.Client
                         Console.WriteLine($"[Client] Welcome, {username}! Successfully registered.");
                         break;
                     }
+                    else if (response == "ADMISSION_CLOSED")
+                    {
+                        Console.WriteLine("[Client] The admission window has already closed. You cannot join this auction.");
+                        Console.WriteLine("Press any key to close...");
+                        Console.ReadKey();
+                        return; //shutdown client   
+                    }
+                    else if (response == null)
+                    {
+                        Console.WriteLine("\n[Client] Server closed the connection.");
+                        Console.WriteLine("Press any key to close...");
+                        Console.ReadKey();
+                        return;
+                    }
                     else
                     {
                         Console.WriteLine($"[Client] The username {username} already exists. Try other username.");
-                    } 
+                    }
                 }
 
                 //waiting for the auction to begin
@@ -59,15 +73,17 @@ namespace LeilaoDistribuido.Client
                     Console.WriteLine("\n==============================================");
                     Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
                     Console.WriteLine($"Item: {item} | Starting base price: {price} EUR");
-                    Console.WriteLine("You can send messages/bids. Type 'Exit' to leave.");
+                    Console.WriteLine("Commands available:");
+                    Console.WriteLine("  OFFER <value>  -> e.g. OFFER 250");
+                    Console.WriteLine("  STATE        -> Check current auction status");
+                    Console.WriteLine("  Exit         -> Leave the auction");
                     Console.WriteLine("==============================================\n");
                 }
-
 
                 //communication
                 while (true) 
                 {
-                    Console.WriteLine("Message: ");
+                    Console.WriteLine("Command > ");
                     string? text = Console.ReadLine();
 
                     if (string.IsNullOrWhiteSpace(text)) continue;
@@ -87,7 +103,48 @@ namespace LeilaoDistribuido.Client
                         break;
                     }
 
-                    Console.WriteLine("Response: " + response);
+                    //auction ended
+                    if (response.StartsWith("AUCTION_ENDED;"))
+                    {
+                        string[] endedResponse = response.Split(';');
+                        Console.WriteLine("\n***************************************************");
+                        Console.WriteLine("***             THE AUCTION HAS ENDED!          ***");
+                        if (endedResponse.Length > 1 && endedResponse[1] == "WINNER")
+                        {
+                            string offererWinner = endedResponse.Length > 2 ? endedResponse[2] : "None";
+                            string offerWinner = endedResponse.Length > 3 ? endedResponse[3] : "0";
+                            Console.WriteLine($"Result: WINNER is '{offererWinner}' with bid of {offerWinner} EUR!");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Result: Item was NOT sold (no valid bids above base price).");
+                        }
+                        Console.WriteLine("Auction is closed. Please type 'Exit' to leave.");
+                        Console.WriteLine("***************************************************\n");
+                    }
+                    //command OFFER ok
+                    else if(response.StartsWith("OFFER_OK;"))
+                    {
+                        string[] successOfferResponse = response.Split(';');
+                        Console.WriteLine($"[OFFER_SUCESS] Your offer of {successOfferResponse[1]}EUR was accepted!");
+                    } else if (response.StartsWith("OFFER_REJECTED;"))
+                    {
+                        string[] badOfferResponse = response.Split(';');
+                        Console.WriteLine($"[OFFER_REJECTED] {badOfferResponse[1]}");
+                    } else if (response.StartsWith("STATE_INFO"))
+                    {
+                        string[] stateResponse = response.Split(';');
+                        Console.WriteLine("\n--- CURRENT AUCTION STATE ---");
+                        Console.WriteLine($"Item: {stateResponse[1]}");
+                        Console.WriteLine($"Base price: {stateResponse[2]} EUR");
+                        Console.WriteLine($"Highest offer: {(stateResponse[3] == "0" ? "No offres yet" : stateResponse[3] + " EUR")}");
+                        Console.WriteLine($"Current offerer: {stateResponse[4]}");
+                        Console.WriteLine("-----------------------------\n");
+                    } else
+                    {
+                        Console.WriteLine("Response: " + response);
+                    }
+
                 }
             }
             catch (SocketException)
@@ -100,6 +157,8 @@ namespace LeilaoDistribuido.Client
                 Console.Error.WriteLine("I/O error");
                 Environment.Exit(3);
             }
+            Console.WriteLine("Press any key to close...");
+            Console.ReadKey();
         }
     }
 }
