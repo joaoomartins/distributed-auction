@@ -1,4 +1,5 @@
 ﻿using Shared;
+using System.Net.Security;
 using System.Net.Sockets;
 using static System.Net.Mime.MediaTypeNames;
 
@@ -69,10 +70,11 @@ namespace LeilaoDistribuido.Client
                     string[] information = infoMessage.Split(';');
                     string item = information.Length > 1 ? information[1] : "Default Item"; //condition ? true : false
                     string price = information.Length > 2 ? information[2] : "0 - Default price";
+                    string time = information.Length > 3 ? information[3] : "Unknown time";
 
                     Console.WriteLine("\n==============================================");
                     Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
-                    Console.WriteLine($"Item: {item} | Starting base price: {price} EUR");
+                    Console.WriteLine($"Item: {item} | Starting base price: {price} EUR|Time remaining: {time}");
                     Console.WriteLine("Commands available:");
                     Console.WriteLine("  OFFER <value>  -> e.g. OFFER 250");
                     Console.WriteLine("  STATE        -> Check current auction status");

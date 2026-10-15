@@ -76,7 +76,7 @@ namespace LeilaoDistribuido.Server
                 Server.semaphore.Wait();
 
                 //send info to offerer
-                outWriter.WriteLine($"AUCTION_START;{Server.ITEM_NAME};{Server.ITEM_BASE_PRICE}");
+                outWriter.WriteLine($"AUCTION_START;{Server.ITEM_NAME};{Server.ITEM_BASE_PRICE};{Server.MAX_TIME}");
                 Console.WriteLine("Thread " + Thread.CurrentThread.Name + " (" + username + "): Auction started for this user.");
 
                 //notify the offerer that the auction has begun
