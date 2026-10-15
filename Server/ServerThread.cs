@@ -149,19 +149,19 @@ namespace LeilaoDistribuido.Server
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer rejected (auction ended).");
                             } else if (offerAmount < Server.ITEM_BASE_PRICE)
                             {
-                                outWriter.WriteLine($"OFFER_REJECTED;Offer must be at least the base price of {Server.ITEM_BASE_PRICE} EUR");
+                                outWriter.WriteLine($"OFFER_REJECTED;Offer must be at least the base price of {Server.ITEM_BASE_PRICE} EUR;Highest offer: {Server.HIGHEST_OFFER}");
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name}({username}): Offerer rejected (Auction ended).");
                             } else if (offerAmount <= Server.HIGHEST_OFFER)
                             {
                                 outWriter.WriteLine($"OFFER_REJECTED; Offer must be higher than current highest offer of {Server.HIGHEST_OFFER} EUR.");
-                                Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Bid of {offerAmount} EUR rejected (Not higher than {Server.HIGHEST_OFFER} EUR).");
+                                Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount} EUR rejected (Not higher than {Server.HIGHEST_OFFER} EUR).");
                             } else
                             {
                                 //update status
                                 Server.HIGHEST_OFFER = offerAmount;
                                 Server.HIGHEST_OFFERER = username;
 
-                                outWriter.WriteLine($"OFFER_OK;{offerAmount}");
+                                outWriter.WriteLine($"OFFER_OK;{offerAmount};{Server.HIGHEST_OFFER}");
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount}EUR accepted. New highest offer!");
                             }
                         }

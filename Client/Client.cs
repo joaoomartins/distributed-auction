@@ -74,7 +74,7 @@ namespace LeilaoDistribuido.Client
 
                     Console.WriteLine("\n==============================================");
                     Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
-                    Console.WriteLine($"Item: {item} | Starting base price: {price} EUR|Time remaining: {time}");
+                    Console.WriteLine($"Item: {item} | Starting base price: {price} EUR|Time remaining: {time}sec.");
                     Console.WriteLine("Commands available:");
                     Console.WriteLine("  OFFER <value>  -> e.g. OFFER 250");
                     Console.WriteLine("  STATE        -> Check current auction status");
@@ -109,17 +109,25 @@ namespace LeilaoDistribuido.Client
                     if (response.StartsWith("AUCTION_ENDED;"))
                     {
                         string[] endedResponse = response.Split(';');
+
+                        Console.WriteLine("EndedResponse: " + string.Join(", ", endedResponse));
                         Console.WriteLine("\n***************************************************");
                         Console.WriteLine("***             THE AUCTION HAS ENDED!          ***");
-                        if (endedResponse.Length > 1 && endedResponse[1] == "WINNER")
+                        string offererWinner = endedResponse.Length > 2 ? endedResponse[2] : "None"; //condicao ? true : false
+                        string offerWinner = endedResponse.Length > 3 ? endedResponse[3] : "0";
+                        if (endedResponse.Length > 1 && endedResponse[1] == "WINNER") 
                         {
-                            string offererWinner = endedResponse.Length > 2 ? endedResponse[2] : "None";
-                            string offerWinner = endedResponse.Length > 3 ? endedResponse[3] : "0";
-                            Console.WriteLine($"Result: WINNER is '{offererWinner}' with bid of {offerWinner} EUR!");
+                            if (offererWinner == username)
+                            {
+                                Console.WriteLine("Your are the WINNER!!! CONGRATULATIONS!!!");
+                            } else
+                            {
+                                Console.WriteLine($"Result: WINNER is '{offererWinner}' with offer of {offerWinner} EUR!");
+                            }
                         }
                         else
                         {
-                            Console.WriteLine("Result: Item was NOT sold (no valid bids above base price).");
+                            Console.WriteLine("Result: Item was NOT sold (no valid offers above base price).");
                         }
                         Console.WriteLine("Auction is closed. Please type 'Exit' to leave.");
                         Console.WriteLine("***************************************************\n");
@@ -128,11 +136,11 @@ namespace LeilaoDistribuido.Client
                     else if(response.StartsWith("OFFER_OK;"))
                     {
                         string[] successOfferResponse = response.Split(';');
-                        Console.WriteLine($"[OFFER_SUCESS] Your offer of {successOfferResponse[1]}EUR was accepted!");
+                        Console.WriteLine($"[OFFER_SUCESS] Your offer of {successOfferResponse[1]}EUR was accepted! Highest offer: {successOfferResponse[2]}");
                     } else if (response.StartsWith("OFFER_REJECTED;"))
                     {
                         string[] badOfferResponse = response.Split(';');
-                        Console.WriteLine($"[OFFER_REJECTED] {badOfferResponse[1]}");
+                        Console.WriteLine($"[OFFER_REJECTED] {badOfferResponse[1]} | {badOfferResponse[2]}");
                     } else if (response.StartsWith("STATE_INFO"))
                     {
                         string[] stateResponse = response.Split(';');
