@@ -1,6 +1,7 @@
 ﻿using Shared;
 using System.Net;
 using System.Net.Sockets;
+using System.Timers;
 
 namespace LeilaoDistribuido.Server
 {
@@ -85,7 +86,11 @@ namespace LeilaoDistribuido.Server
                     {
                         ADMISSION_OPEN = false;
                         Console.WriteLine("[MAIN] Time to accept new players has ended!");
-                    
+                        Console.WriteLine("");
+                        Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
+                        Console.WriteLine($"Item: {Server.ITEM_NAME} | Starting base price: {ITEM_BASE_PRICE} EUR|Time remaining: {MAX_TIME}sec.");
+                        Console.WriteLine("");
+
                         if (offerersCount == 0)
                         {
                             Console.WriteLine("[MAIN] No offerers joined. Auction cancelled.");
