@@ -33,9 +33,9 @@ namespace LeilaoDistribuido.Server
             Console.WriteLine("--- CONFIGURATION ---");
             Console.WriteLine("Enter the product name: ");
             ITEM_NAME = Console.ReadLine();
-            while (string.IsNullOrWhiteSpace(ITEM_NAME))
+            while (string.IsNullOrWhiteSpace(ITEM_NAME) || ITEM_NAME.Contains(';'))
             {
-                Console.WriteLine("The product name can´t be empty!");
+                Console.WriteLine("The product name can´t be empty or contain ';' !");
                 ITEM_NAME = Console.ReadLine();
             }
 
