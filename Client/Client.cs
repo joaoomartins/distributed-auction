@@ -9,10 +9,16 @@ namespace LeilaoDistribuido.Client
     {
         public static void Main()
         {
-            Console.WriteLine("Enter hostname server: ");
-            string hostname = Console.ReadLine()!;
-            int portNumber = InputValidation.ValidateIntBetween("Enter the port number: ", 1024, 65535);
 
+            Console.WriteLine("Enter hostname server: ");
+            string? hostname = Console.ReadLine();
+            while (string.IsNullOrWhiteSpace(hostname))
+            {
+                Console.WriteLine("Invalid hostname. Please enter a valid hostname.");
+                hostname = Console.ReadLine();
+            }
+
+            int portNumber = InputValidation.ValidateIntBetween("Enter the port number: ", 1024, 65535);
 
             try
             {
@@ -29,7 +35,12 @@ namespace LeilaoDistribuido.Client
                 while (true)
                 {
                     Console.WriteLine("Enter your username: ");
-                    username = Console.ReadLine();
+                    username = Console.ReadLine()!;
+                    while (string.IsNullOrWhiteSpace(username) || username.Contains(';'))
+                    {
+                        Console.WriteLine("Invalid username (cannot be empty or contain ';'). Please enter a valid username.");
+                        username = Console.ReadLine()!;
+                    }
 
                     outWriter.WriteLine(username);
                     string? response = inReader.ReadLine();
@@ -140,7 +151,9 @@ namespace LeilaoDistribuido.Client
                     } else if (response.StartsWith("OFFER_REJECTED;"))
                     {
                         string[] badOfferResponse = response.Split(';');
-                        Console.WriteLine($"[OFFER_REJECTED] {badOfferResponse[1]} | {badOfferResponse[2]}");
+                        string reason = badOfferResponse.Length > 1 ? badOfferResponse[1] : "Offer rejected";
+                        string extra = badOfferResponse.Length > 2 ? $" | {badOfferResponse[2]}" : "";
+                        Console.WriteLine($"[OFFER_REJECTED] {reason}{extra}");
                     } else if (response.StartsWith("STATE_INFO"))
                     {
                         string[] stateResponse = response.Split(';');

@@ -133,7 +133,7 @@ namespace LeilaoDistribuido.Server
                         string[] offerMessage = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
                         //
-                        if (offerMessage.Length < 2 || !double.TryParse(offerMessage[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double offerAmount))
+                        if (offerMessage.Length != 2 || !offerMessage[0].Equals("OFFER", StringComparison.OrdinalIgnoreCase) || !double.TryParse(offerMessage[1].Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double offerAmount) || !double.IsFinite(offerAmount))
                         {
                             outWriter.WriteLine("OFFER_REJECTED;Invalid format. Use OFFER <amount>");
                             Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Sent wrong format offer '{message}'");
@@ -153,7 +153,7 @@ namespace LeilaoDistribuido.Server
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name}({username}): Offerer rejected (Auction ended).");
                             } else if (offerAmount <= Server.HIGHEST_OFFER)
                             {
-                                outWriter.WriteLine($"OFFER_REJECTED; Offer must be higher than current highest offer of {Server.HIGHEST_OFFER} EUR.");
+                                    outWriter.WriteLine($"OFFER_REJECTED; Offer must be higher than current highest offer of {Server.HIGHEST_OFFER} EUR.");
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount} EUR rejected (Not higher than {Server.HIGHEST_OFFER} EUR).");
                             } else
                             {
