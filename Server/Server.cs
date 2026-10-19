@@ -1,7 +1,6 @@
 ﻿using Shared;
 using System.Net;
 using System.Net.Sockets;
-using System.Timers;
 
 namespace LeilaoDistribuido.Server
 {
@@ -28,15 +27,14 @@ namespace LeilaoDistribuido.Server
 
         public static void Main()
         {
-            int nUsers = 0;
-
             Console.WriteLine("--- CONFIGURATION ---");
             Console.WriteLine("Enter the product name: ");
-            ITEM_NAME = Console.ReadLine();
+            ITEM_NAME = Console.ReadLine()!;
             while (string.IsNullOrWhiteSpace(ITEM_NAME))
             {
                 Console.WriteLine("The product name can´t be empty!");
-                ITEM_NAME = Console.ReadLine();
+                Console.WriteLine("Enter the product name: ");
+                ITEM_NAME = Console.ReadLine()!;
             }
 
             ITEM_BASE_PRICE = InputValidation.ValidateDoubleGT0("Enter the product base price (EUR): ");
@@ -59,18 +57,15 @@ namespace LeilaoDistribuido.Server
                 Console.WriteLine($"[Server] Listening on {hostname}:{portNumber}");
                 Console.WriteLine($"[Server] Admission window OPEN for {ADMISSION_TIME} seconds. Waiting offerers...\n");
 
+                CancellationTokenSource cts = new CancellationTokenSource(ADMISSION_TIME * 1000);
                 while (true)
                 {
-                    Console.WriteLine("Main: new offerer connected...");
-                    
                     try
                     {
-                        CancellationTokenSource cts = new CancellationTokenSource(ADMISSION_TIME * 1000);
                         TcpClient clientSocket = serverSocket.AcceptTcpClientAsync(cts.Token).GetAwaiter().GetResult();
 
-                        Console.WriteLine("Main: new connection...");
-
                         offerersCount++;
+                        Console.WriteLine($"Main: Offerer {offerersCount} connected.");
 
                         //create and start a unique client thread
                         ServerThread serverThread = new ServerThread(clientSocket);
@@ -85,6 +80,9 @@ namespace LeilaoDistribuido.Server
                     catch (OperationCanceledException)
                     {
                         ADMISSION_OPEN = false;
+
+                        serverSocket.Stop();
+
                         Console.WriteLine("[MAIN] Time to accept new players has ended!");
                         Console.WriteLine("");
                         Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
@@ -113,14 +111,33 @@ namespace LeilaoDistribuido.Server
                     }
                 }
 
-                AUCTION_ENDED = true;
+                string finalWinner = "";
+                double finalHighestOffer = 0;
+                bool itemSold = false;
+
+                mutex.WaitOne();
+                try
+                {
+                    AUCTION_ENDED = true;
+                    if (HIGHEST_OFFER >= ITEM_BASE_PRICE && !string.IsNullOrEmpty(HIGHEST_OFFERER))
+                    {
+                        finalWinner = HIGHEST_OFFERER;
+                        finalHighestOffer = HIGHEST_OFFER;
+                        itemSold = true;
+                    }
+                }
+                finally
+                {
+                    mutex.ReleaseMutex();
+                }
+
                 Console.WriteLine("[MAIN] Auction time has ended!");
 
                 //RESULTS
                 Console.WriteLine("\n=== AUCTION RESULTS ===");
-                if (HIGHEST_OFFER >= ITEM_BASE_PRICE && !string.IsNullOrEmpty(HIGHEST_OFFERER))
+                if (itemSold)
                 {
-                    Console.WriteLine($"Winner: {HIGHEST_OFFERER} with offer of {HIGHEST_OFFER} EUR!");
+                    Console.WriteLine($"Winner: {finalWinner} with offer of {finalHighestOffer} EUR!");
                 }
                 else
                 {

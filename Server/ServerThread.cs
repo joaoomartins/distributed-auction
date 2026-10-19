@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net.Sockets;
-using System.Reflection.Metadata;
-using System.Text;
 
 namespace LeilaoDistribuido.Server
 {
@@ -29,18 +27,31 @@ namespace LeilaoDistribuido.Server
                 while (true)
                 {
                     string? attemptUsername = inReader.ReadLine();
-                    if (attemptUsername == null) return;
 
                     //regist after admission time
                     if (!Server.ADMISSION_OPEN)
                     {
                         outWriter.WriteLine("ADMISSION_CLOSED");
                         Console.WriteLine("Thread " + Thread.CurrentThread.Name + ": Refused (admission window closed).");
-                        return; // Termina e fecha socket no bloco finally
+                        return;
+                    }
+
+                    //empty name validation
+                    if (string.IsNullOrWhiteSpace(attemptUsername))
+                    {
+                        outWriter.WriteLine("INVALID_NAME;Username cannot be empty.");
+                        Console.WriteLine($"Thread {Thread.CurrentThread.Name}: Refused empty username.");
+                        continue;
+                    }
+
+                    if (attemptUsername.Contains(';'))
+                    {
+                        outWriter.WriteLine("INVALID_NAME;Username cannot contain semicolons.");
+                        Console.WriteLine($"Thread {Thread.CurrentThread.Name}: Refused name with semicolon -> {attemptUsername}");
+                        continue;
                     }
 
                     bool acepted = false;
-
                     Server.mutex.WaitOne();
 
                     try
@@ -72,7 +83,6 @@ namespace LeilaoDistribuido.Server
 
                 //wait for admission time
                 Console.WriteLine("Thread " + Thread.CurrentThread.Name + " (" + username + "): Waiting for admission window to close...");
-
                 Server.semaphore.Wait();
 
                 //send info to offerer
@@ -86,10 +96,11 @@ namespace LeilaoDistribuido.Server
 
                     if (message == null || message.Equals("Exit", StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine("Thread " + Thread.CurrentThread.Name + ": User " + username + " left!");
+                        Console.WriteLine("Thread " + Thread.CurrentThread.Name + ": User " + username + " disconnected!");
                         break;
                     }
 
+                    // auction ended notification
                     if (Server.AUCTION_ENDED)
                     {
                         Server.mutex.WaitOne();
@@ -113,6 +124,7 @@ namespace LeilaoDistribuido.Server
                         continue;
                     }
 
+                    // state command
                     if (message.Equals("STATE", StringComparison.OrdinalIgnoreCase))
                     {
                         Server.mutex.WaitOne();
@@ -131,38 +143,91 @@ namespace LeilaoDistribuido.Server
                     //command OFFER: when offerer submit a offer
                     if (message.StartsWith("OFFER", StringComparison.OrdinalIgnoreCase)) {
                         string[] offerMessage = message.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        Console.WriteLine("offerMessage: " + string.Join(", ", offerMessage));
 
-                        //
-                        if (offerMessage.Length < 2 || !double.TryParse(offerMessage[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double offerAmount))
+                        //reject malformed formats , NaN Infinity values
+                        if (offerMessage.Length != 2)
                         {
-                            outWriter.WriteLine("OFFER_REJECTED;Invalid format. Use OFFER <amount>");
-                            Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Sent wrong format offer '{message}'");
+                            double currentHighest;
+                            Server.mutex.WaitOne();
+                            try
+                            {
+                                currentHighest = Server.HIGHEST_OFFER;
+                            }
+                            finally
+                            {
+                                Server.mutex.ReleaseMutex();
+                            }
+
+                            outWriter.WriteLine($"OFFER_REJECTED;Invalid syntax. Expected exactly one amount (e.g. OFFER 250);{currentHighest}");
+                            Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Rejected offer with invalid argument count '{message}'");
                             continue;
                         }
+
+                        if (!double.TryParse(offerMessage[1].Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double offerAmount) ||
+                            !double.IsFinite(offerAmount))
+                        {
+                            double currentHighest;
+                            Server.mutex.WaitOne();
+                            try
+                            {
+                                currentHighest = Server.HIGHEST_OFFER;
+                            }
+                            finally
+                            {
+                                Server.mutex.ReleaseMutex();
+                            }
+
+                            outWriter.WriteLine($"OFFER_REJECTED;Invalid amount '{offerMessage[1]}'. Must be a numeric value;{currentHighest}");
+                            Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Rejected non-numeric offer '{message}'");
+                            continue;
+                        }
+
+                        if (offerAmount <= 0)
+                        {
+                            double currentHighest;
+                            Server.mutex.WaitOne();
+                            try
+                            {
+                                currentHighest = Server.HIGHEST_OFFER;
+                            }
+                            finally
+                            {
+                                Server.mutex.ReleaseMutex();
+                            }
+
+                            outWriter.WriteLine($"OFFER_REJECTED;Offer amount must be strictly greater than 0;{currentHighest}");
+                            Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Rejected non-positive offer '{message}'");
+                            continue;
+                        }
+
+                       
 
                         Server.mutex.WaitOne();
                         try
                         {
                             if (Server.AUCTION_ENDED)
                             {
-                                outWriter.WriteLine("OFFER_REJECTED;Auction has already ended.");
+                                outWriter.WriteLine($"OFFER_REJECTED;Auction has already ended;{Server.HIGHEST_OFFER}");
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer rejected (auction ended).");
-                            } else if (offerAmount < Server.ITEM_BASE_PRICE)
+                            }
+                            else if (offerAmount < Server.ITEM_BASE_PRICE)
                             {
-                                outWriter.WriteLine($"OFFER_REJECTED;Offer must be at least the base price of {Server.ITEM_BASE_PRICE} EUR;Highest offer: {Server.HIGHEST_OFFER}");
-                                Console.WriteLine($"Thread {Thread.CurrentThread.Name}({username}): Offerer rejected (Auction ended).");
-                            } else if (offerAmount <= Server.HIGHEST_OFFER)
+                                outWriter.WriteLine($"OFFER_REJECTED;Offer must be at least the base price of {Server.ITEM_BASE_PRICE} EUR;{Server.HIGHEST_OFFER}");
+                                Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount} EUR rejected (Below base price).");
+                            }
+                            else if (offerAmount <= Server.HIGHEST_OFFER)
                             {
-                                outWriter.WriteLine($"OFFER_REJECTED; Offer must be higher than current highest offer of {Server.HIGHEST_OFFER} EUR.");
+                                outWriter.WriteLine($"OFFER_REJECTED;Offer must be higher than current highest offer of {Server.HIGHEST_OFFER} EUR;{Server.HIGHEST_OFFER}");
                                 Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount} EUR rejected (Not higher than {Server.HIGHEST_OFFER} EUR).");
-                            } else
+                            }
+                            else
                             {
-                                //update status
                                 Server.HIGHEST_OFFER = offerAmount;
                                 Server.HIGHEST_OFFERER = username;
 
                                 outWriter.WriteLine($"OFFER_OK;{offerAmount};{Server.HIGHEST_OFFER}");
-                                Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount}EUR accepted. New highest offer!");
+                                Console.WriteLine($"Thread {Thread.CurrentThread.Name} ({username}): Offer of {offerAmount} EUR accepted. New leader!");
                             }
                         }
                         finally
@@ -174,12 +239,16 @@ namespace LeilaoDistribuido.Server
                     }
 
                     //unknow command
-                    outWriter.WriteLine("UNKNOWN_COMMAND;Supported commands: OFFER <amount>, STATE, Exit\"");
+                    outWriter.WriteLine("UNKNOWN_COMMAND;Supported commands: OFFER <amount>, STATE, Exit");
                 }
             }
             catch (IOException)
             {
                 Console.Error.WriteLine("Thread " + Thread.CurrentThread.Name + ": Connection lost with " + username);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Thread {Thread.CurrentThread.Name}: Unexpected error: {ex.Message}");
             }
             finally
             {
