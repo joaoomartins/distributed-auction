@@ -42,7 +42,6 @@ namespace LeilaoDistribuido.Server
             ADMISSION_TIME = InputValidation.ValidateIntGT0("Enter the admission time window (sec): ");
             int portNumber = InputValidation.ValidateIntBetween("Enter the port number: ", 1024, 65535);
 
-            //get hostname
             string hostname = Dns.GetHostName();
             TcpListener? serverSocket = null;
             List<Thread> threads = new List<Thread>();
@@ -83,17 +82,17 @@ namespace LeilaoDistribuido.Server
 
                         serverSocket.Stop();
 
-                        Console.WriteLine("[MAIN] Time to accept new players has ended!");
-                        Console.WriteLine("");
-                        Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
-                        Console.WriteLine($"Item: {Server.ITEM_NAME} | Starting base price: {ITEM_BASE_PRICE} EUR|Time remaining: {MAX_TIME}sec.");
-                        Console.WriteLine("");
-
                         if (offerersCount == 0)
                         {
                             Console.WriteLine("[MAIN] No offerers joined. Auction cancelled.");
                             return;
                         }
+
+                        Console.WriteLine("[MAIN] Time to accept new players has ended!");
+                        Console.WriteLine("");
+                        Console.WriteLine("*** THE AUCTION HAS STARTED! ***");
+                        Console.WriteLine($"Item: {Server.ITEM_NAME} | Starting base price: {ITEM_BASE_PRICE} EUR|Time remaining: {MAX_TIME}sec.");
+                        Console.WriteLine("");
 
                         semaphore.Release(offerersCount);
                         break;
@@ -103,7 +102,8 @@ namespace LeilaoDistribuido.Server
                 //auction timer
                 DateTime startAuction = DateTime.Now;
                 foreach (Thread thread in threads)
-                {
+                {   
+                    //                   max duration                  -    time passed since the beginnin
                     TimeSpan remaining = TimeSpan.FromSeconds(MAX_TIME) - (DateTime.Now - startAuction);
                     if (remaining.TotalMilliseconds > 0)
                     {

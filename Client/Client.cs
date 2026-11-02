@@ -35,12 +35,6 @@ namespace LeilaoDistribuido.Client
                     Console.WriteLine("Enter your username: ");
                     username = Console.ReadLine();
 
-                    //if (string.IsNullOrWhiteSpace(username))
-                    //{
-                    //    Console.WriteLine("[Client] Username cannot be empty.");
-                    //    continue;
-                    //}
-
                     if (username.Contains(';'))
                     {
                         Console.WriteLine("[Client] Username cannot contain semicolons (';'). Try again.");
@@ -87,7 +81,12 @@ namespace LeilaoDistribuido.Client
                 string? infoMessage = inReader.ReadLine();
                 //MESSAGE RECEIVED: AUCTION_START: ITEM_NAME;ITEM_BASE_PRICE index 0 1 2
 
-                if (infoMessage == null || !infoMessage.StartsWith("AUCTION_START"))
+                if(infoMessage == null)
+                {
+                    throw new IOException("Server closed connection before auction started.");
+                }
+
+                if (!infoMessage.StartsWith("AUCTION_START"))
                 {
                     Console.WriteLine("[Client] Server closed the connection before the auction started.");
                     Console.WriteLine("Press any key to close...");
@@ -130,10 +129,10 @@ namespace LeilaoDistribuido.Client
                     }
 
                     string? response = inReader.ReadLine();
+
                     if (response == null)
                     {
-                        Console.WriteLine("[Client] Server closed the connection.");
-                        break;
+                        throw new IOException("Server down or closed the proccess.");
                     }
 
                     //auction ended
@@ -202,16 +201,17 @@ namespace LeilaoDistribuido.Client
 
                 }
             }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"\n[Client] I/O Error: Server down or close connection! ({ex.Message})");
+                Console.WriteLine("[Client] Leaving the program...");
+            }
             catch (SocketException)
             {
                 Console.Error.WriteLine($"[Client] Connection refused or lost to {hostname}:{portNumber}. (Admission may have closed).");
                 Environment.Exit(2);
             }
-            catch (IOException)
-            {
-                Console.Error.WriteLine("I/O error");
-                Environment.Exit(3);
-            }
+
             Console.WriteLine("Press any key to close...");
             Console.ReadKey();
         }
